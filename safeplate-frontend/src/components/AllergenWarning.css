@@ -1,0 +1,71 @@
+.allergen-warning {
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin: 8px 0;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.allergen-warning.danger {
+    background-color: #ffebee;
+    border: 2px solid #ff5252;
+    color: #c62828;
+    animation: pulse 2s infinite;
+}
+
+.allergen-warning.warning {
+    background-color: #fff3e0;
+    border: 1px solid #ffb74d;
+    color: #ef6c00;
+}
+
+.allergen-warning.safe {
+    background-color: #e8f5e9;
+    border: 1px solid #4caf50;
+    color: #2e7d32;
+}
+
+.danger-content, .warning-content, .safe-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.danger-icon, .warning-icon, .safe-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.danger-text, .warning-text, .safe-text {
+    flex-grow: 1;
+}
+
+.danger-text p, .warning-text p {
+    margin: 2px 0 0 0;
+    font-size: 13px;
+    opacity: 0.9;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 6px rgba(255, 82, 82, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 82, 82, 0);
+    }
+}
+
+/* Для маленьких экранов */
+@media (max-width: 768px) {
+    .allergen-warning {
+        padding: 6px 10px;
+        font-size: 13px;
+    }
+    
+    .danger-icon, .warning-icon, .safe-icon {
+        font-size: 18px;
+    }
+}
