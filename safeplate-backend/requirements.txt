@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+pydantic
+python-multipart
+passlib[bcrypt]
+python-jose[cryptography]==3.5.0
+python-multipart==0.0.20
