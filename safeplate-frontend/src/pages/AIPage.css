@@ -1,0 +1,223 @@
+.ai-page-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 30px 20px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.ai-title {
+  font-size: 2.8rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  margin-bottom: 10px;
+  text-align: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.ai-subtitle {
+  text-align: center;
+  color: #666;
+  font-size: 1.1rem;
+  margin-bottom: 40px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Поисковая строка */
+.ai-search-container {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 30px;
+  background: white;
+  padding: 25px;
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(102, 126, 234, 0.15);
+}
+
+.ai-search-input {
+  flex: 1;
+  padding: 18px 25px;
+  border: 2px solid #e0e7ff;
+  border-radius: 15px;
+  font-size: 1.1rem;
+  transition: all 0.3s ease;
+  background: #f8faff;
+}
+
+.ai-search-input:focus {
+  outline: none;
+  border-color: #667eea;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+}
+
+.ai-search-button {
+  padding: 18px 35px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 15px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.ai-search-button:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 30px rgba(102, 126, 234, 0.3);
+}
+
+.ai-search-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Примеры запросов */
+.query-examples {
+  background: #f8faff;
+  padding: 20px;
+  border-radius: 15px;
+  margin-bottom: 30px;
+}
+
+.query-examples p {
+  margin: 0 0 15px 0;
+  color: #555;
+  font-weight: 500;
+}
+
+.example-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.example-tag {
+  background: white;
+  color: #667eea;
+  padding: 10px 20px;
+  border-radius: 25px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid #e0e7ff;
+  font-weight: 500;
+}
+
+.example-tag:hover {
+  background: #667eea;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+}
+
+/* Результаты */
+.ai-results {
+  margin-top: 40px;
+}
+
+.reason-section {
+  background: linear-gradient(135deg, #e0e7ff 0%, #d0d7f5 100%);
+  padding: 25px;
+  border-radius: 20px;
+  margin-bottom: 30px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  animation: slideIn 0.5s ease;
+}
+
+.reason-badge {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.reason-text {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #333;
+  font-weight: 500;
+}
+
+/* Карточки блюд */
+.ai-dishes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 25px;
+  margin-top: 20px;
+}
+
+.ai-dish-card {
+  background: white;
+  padding: 25px;
+  border-radius: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  animation: fadeInUp 0.5s ease forwards;
+  opacity: 0;
+}
+
+.ai-dish-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
+}
+
+.ai-dish-card.danger {
+  border-left: 6px solid #ff6b6b;
+  background: linear-gradient(135deg, #fff 0%, #fff5f5 100%);
+}
+
+.ai-dish-card.warning {
+  border-left: 6px solid #ffd93d;
+  background: linear-gradient(135deg, #fff 0%, #fffaf0 100%);
+}
+
+.ai-dish-card.safe {
+  border-left: 6px solid #6bcf7f;
+  background: linear-gradient(135deg, #fff 0%, #f0fff4 100%);
+}
+
+/* Остальные стили как в MenuPage.css */
+/* ... добавь сюда стили для .dish-header, .dish-name, .danger-badge, .allergens-section, .dish-actions и т.д. */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .ai-search-container {
+    flex-direction: column;
+  }
+  
+  .ai-search-button {
+    width: 100%;
+  }
+  
+  .ai-dishes-grid {
+    grid-template-columns: 1fr;
+  }
+}

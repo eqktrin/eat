@@ -1,0 +1,11 @@
+﻿__pycache__/
+*.pyc
+venv/
+.env
+uploads/
+node_modules/
+*.zip
+*.exe
+*.7z
+*.rar
+MinIO/

@@ -1,0 +1,83 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install backend dependencies
+        run: |
+          cd safeplate-backend
+          pip install -r requirements.txt
+          pip install pytest flake8 black
+      
+      - name: Run backend tests
+        run: |
+          cd safeplate-backend
+          pytest -v
+      
+      - name: Run linter
+        run: |
+          cd safeplate-backend
+          flake8 . --max-line-length=120
+      
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - name: Install frontend dependencies
+        run: |
+          cd safeplate-frontend
+          npm ci --legacy-peer-deps
+      
+      - name: Run frontend tests
+        run: |
+          cd safeplate-frontend
+          npm test -- --watchAll=false --passWithNoTests
+      
+      - name: Build frontend
+        run: |
+          cd safeplate-frontend
+          npm run build
+
+  docker-build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Build backend image
+        run: |
+          cd safeplate-backend
+          docker build -t safeplate-backend:latest .
+      
+      - name: Build frontend image
+        run: |
+          cd safeplate-frontend
+          docker build -t safeplate-frontend:latest .
+      
+      - name: Test docker-compose up
+        run: |
+          docker-compose up -d
+          sleep 10
+          docker-compose ps
+          docker-compose down

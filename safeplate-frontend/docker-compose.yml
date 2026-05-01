@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # PostgreSQL база данных
+  db:
+    image: postgres:15-alpine
+    container_name: safeplate_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-safeplate}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-safeplate123}
+      POSTGRES_DB: ${DB_NAME:-safeplate}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-safeplate}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - safeplate_network
+
+  # Backend FastAPI
+  backend:
+    build: ./safeplate-backend
+    container_name: safeplate_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-safeplate}:${DB_PASSWORD:-safeplate123}@db:5432/${DB_NAME:-safeplate}
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-here}
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      REFRESH_TOKEN_EXPIRE_DAYS: 7
+      OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY:-}
+      CORS_ORIGINS: http://localhost,http://localhost:80
+    volumes:
+      - uploads_data:/app/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - safeplate_network
+
+  # Frontend React + Nginx
+  frontend:
+    build: ./safeplate-frontend
+    container_name: safeplate_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - safeplate_network
+
+  # Reverse proxy (опционально, если нужен отдельный)
+  # Можно использовать nginx как основной, упростим пока
+
+networks:
+  safeplate_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  uploads_data:
