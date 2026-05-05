@@ -1,78 +1,76 @@
-name: CI/CD Pipeline
+version: '3.8'
 
-on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
+services:
+  # PostgreSQL база данных
+  db:
+    image: postgres:15-alpine
+    container_name: safeplate_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-safeplate}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-safeplate123}
+      POSTGRES_DB: ${DB_NAME:-safeplate}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-safeplate}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - safeplate_network
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      
-      - name: Install backend dependencies
-        run: |
-          cd safeplate-backend
-          pip install -r requirements.txt
-          pip install pytest pytest-asyncio pytest-timeout
-      
-      - name: Run backend tests
-        run: |
-          cd safeplate-backend
-          pytest -v --ignore=tests/test_external_api.py --ignore=tests/test_weather.py
-      
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-      
-      - name: Install frontend dependencies
-        run: |
-          cd safeplate-frontend
-          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
-      
-      - name: Run frontend tests
-        run: |
-          cd safeplate-frontend
-          npm test -- --watchAll=false --passWithNoTests || true
-      
-      - name: Build frontend
-        run: |
-          cd safeplate-frontend
-          npm run build
+  # Backend FastAPI
+  backend:
+    build: ./safeplate-backend
+    container_name: safeplate_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-safeplate}:${DB_PASSWORD:-safeplate123}@db:5432/${DB_NAME:-safeplate}
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-here}
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      REFRESH_TOKEN_EXPIRE_DAYS: 7
+      OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY:-}
+      CORS_ORIGINS: http://localhost,http://localhost:80
+    volumes:
+      - uploads_data:/app/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - safeplate_network
 
-  docker-build:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
-      - name: Build backend image
-        run: |
-          cd safeplate-backend
-          docker build -t safeplate-backend:latest .
-      
-      - name: Build frontend image
-        run: |
-          cd safeplate-frontend
-          docker build -t safeplate-frontend:latest .
-      
-      - name: Test docker-compose up
-        run: |
-          docker-compose up -d
-          sleep 10
-          docker-compose ps
-          docker-compose down
+  frontend:
+    build: ./safeplate-frontend
+    container_name: safeplate_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - safeplate_network
+
+networks:
+  safeplate_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  uploads_data:
