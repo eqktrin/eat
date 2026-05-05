@@ -10,7 +10,6 @@ from models.dish import Dish
 from utils.security import get_password_hash, create_access_token
 
 
-# ========== БАЗА ДАННЫХ ==========
 @pytest.fixture(scope="session", autouse=True)
 def setup_db():
     Base.metadata.create_all(bind=engine)
@@ -26,7 +25,6 @@ def override_get_db():
         db.close()
 
 
-# ========== ОВЕРРАЙД DEPENDENCIES ==========
 def override_get_current_user_for_tests():
     """Возвращает тестового пользователя (при наличии токена)"""
     db = SessionLocal()
@@ -66,7 +64,6 @@ from dependencies import get_current_user, get_current_admin_user, oauth2_scheme
 main.app.dependency_overrides.clear()
 main.app.dependency_overrides[get_db] = override_get_db
 
-# Создаём функцию-обёртку, которая проверяет токен
 async def get_current_user_with_override(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(override_get_db)

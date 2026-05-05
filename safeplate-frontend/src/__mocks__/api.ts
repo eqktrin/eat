@@ -1,4 +1,3 @@
-// src/__mocks__/api.ts
 const mockApi = {
   get: jest.fn(),
   post: jest.fn(),

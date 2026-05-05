@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # PostgreSQL база данных
   db:
     image: postgres:15-alpine
     container_name: safeplate_db
@@ -22,7 +21,6 @@ services:
     networks:
       - safeplate_network
 
-  # Backend FastAPI
   backend:
     build: ./safeplate-backend
     container_name: safeplate_backend
