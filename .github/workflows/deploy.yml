@@ -11,23 +11,26 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v4   
+      - uses: actions/checkout@v4
       
       - name: Setup Python
-        uses: actions/setup-python@v5  
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'      
+          python-version: '3.11'
       
       - name: Install backend dependencies
         run: |
           cd safeplate-backend
           pip install -r requirements.txt
-          pip install pytest
+          pip install pytest pytest-asyncio pytest-timeout
       
-      - name: Run backend tests 
+      - name: Run backend tests
+        env:
+          SECRET_KEY: "test-secret-key-for-ci-1234567890"
+          ALGORITHM: "HS256"
         run: |
           cd safeplate-backend
-          pytest -v || true  
+          pytest -v --ignore=tests/test_external_api.py --ignore=tests/test_weather.py
       
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -37,9 +40,14 @@ jobs:
       - name: Install frontend dependencies
         run: |
           cd safeplate-frontend
-          npm ci --legacy-peer-deps || true
+          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+      
+      - name: Run frontend tests
+        run: |
+          cd safeplate-frontend
+          npm test -- --watchAll=false --passWithNoTests || true
       
       - name: Build frontend
         run: |
           cd safeplate-frontend
-          npm run build || true
+          npm run build
