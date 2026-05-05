@@ -11,12 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v4    # обновлено с v3 на v4
+      - uses: actions/checkout@v4   
       
       - name: Setup Python
-        uses: actions/setup-python@v5  # обновлено с v4 на v5
+        uses: actions/setup-python@v5  
         with:
-          python-version: '3.11'       # изменено с 3.11 на 3.11 (оставили)
+          python-version: '3.11'      
       
       - name: Install backend dependencies
         run: |
@@ -24,10 +24,10 @@ jobs:
           pip install -r requirements.txt
           pip install pytest
       
-      - name: Run backend tests (optional)
+      - name: Run backend tests 
         run: |
           cd safeplate-backend
-          pytest -v || true   # Добавлено || true - тесты не блокируют
+          pytest -v || true  
       
       - name: Setup Node
         uses: actions/setup-node@v4
