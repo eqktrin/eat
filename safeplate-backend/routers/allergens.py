@@ -15,10 +15,12 @@ KNOWN_ALLERGENS = ["dairy", "gluten", "eggs", "berries", "nuts", "soy", "fish", 
 class AllergensUpdateRequest(BaseModel):
     allergens: List[str] = []
 
+
 @router.get("/")
 def get_known_allergens():
     """Получить список известных аллергенов"""
     return {"allergens": KNOWN_ALLERGENS}
+
 
 @router.get("/my")
 def get_my_allergens(
@@ -26,7 +28,6 @@ def get_my_allergens(
     db: Session = Depends(get_db)
 ):
     """Получить аллергены текущего пользователя"""
-    # Получаем аллергены пользователя через связующую таблицу
     result = db.execute(
         select(Allergen.name)
         .select_from(user_allergen_association)
@@ -40,6 +41,7 @@ def get_my_allergens(
         "allergens": allergens
     }
 
+
 @router.post("/update")
 def update_my_allergens(
     data: AllergensUpdateRequest,
@@ -47,6 +49,9 @@ def update_my_allergens(
     db: Session = Depends(get_db)
 ):
     """Обновить аллергены текущего пользователя"""
+    # Удаляем дубликаты
+    unique_allergens = list(set(data.allergens))
+    
     # Удаляем старые связи
     db.execute(
         user_allergen_association.delete().where(
@@ -55,15 +60,13 @@ def update_my_allergens(
     )
     
     # Добавляем новые аллергены
-    for allergen_name in data.allergens:
-        # Находим или создаем аллерген
+    for allergen_name in unique_allergens:
         allergen = db.query(Allergen).filter(Allergen.name == allergen_name).first()
         if not allergen:
             allergen = Allergen(name=allergen_name)
             db.add(allergen)
-            db.flush()  # Чтобы получить id
+            db.flush()
         
-        # Создаем связь
         db.execute(
             user_allergen_association.insert().values(
                 user_id=current_user.id,
@@ -76,5 +79,5 @@ def update_my_allergens(
     return {
         "message": "Allergens updated",
         "user_id": current_user.id,
-        "allergens": data.allergens,
+        "allergens": unique_allergens,
     }

@@ -7,12 +7,32 @@ from models import User, UserRole
 from schemas.auth import TokenData
 import os
 from dotenv import load_dotenv
+from typing import Optional
 
 load_dotenv()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=True)
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
+
+
+async def get_current_user_optional(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    """Возвращает пользователя или None (без ошибки)"""
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: int = payload.get("sub")
+        if user_id is None:
+            return None
+        user = db.query(User).filter(User.id == user_id).first()
+        return user
+    except JWTError:
+        return None
+
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
@@ -24,20 +44,12 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: int = payload.get("sub")
-        if user_id is None:
-            raise credentials_exception
-        token_data = TokenData(user_id=user_id)
-    except JWTError:
-        raise credentials_exception
-    
-    user = db.query(User).filter(User.id == token_data.user_id).first()
-    if user is None:
+    user = await get_current_user_optional(token, db)
+    if not user:
         raise credentials_exception
     
     return user
+
 
 async def get_current_active_user(
     current_user: User = Depends(get_current_user)
@@ -46,6 +58,30 @@ async def get_current_active_user(
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
+
+async def get_current_admin_user(
+    current_user: User = Depends(get_current_active_user)
+) -> User:
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin rights required"
+        )
+    return current_user
+
+
+async def get_current_regular_user(
+    current_user: User = Depends(get_current_active_user)
+) -> User:
+    if current_user.role != UserRole.USER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User rights required"
+        )
+    return current_user
+
+
+# Для обратной совместимости
 def require_role(required_role: UserRole):
     def role_checker(current_user: User = Depends(get_current_active_user)):
         if current_user.role != required_role:
@@ -55,6 +91,7 @@ def require_role(required_role: UserRole):
             )
         return current_user
     return role_checker
+
 
 require_admin = require_role(UserRole.ADMIN)
 require_user = require_role(UserRole.USER)

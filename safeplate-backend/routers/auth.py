@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import User
 from models.user import RefreshToken
-from schemas.auth import UserCreate, UserLogin, Token, UserResponse
+from models.user import UserRole
+from schemas.auth import UserCreate, UserLogin, UserResponse
 from utils.security import (
     get_password_hash,
     verify_password,
@@ -11,7 +12,7 @@ from utils.security import (
     create_refresh_token,
     REFRESH_TOKEN_EXPIRE_DAYS
 )
-from dependencies import get_current_user, require_admin
+from dependencies import get_current_user, get_current_admin_user
 from datetime import datetime, timedelta
 import json
 import logging
@@ -20,6 +21,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
 
 @router.post("/register", response_model=UserResponse)
 def register(user: UserCreate, db: Session = Depends(get_db)):
@@ -34,7 +36,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     new_user = User(
         email=user.email,
         password_hash=hashed_password,
-        role="USER"
+        role=UserRole.USER
     )
     
     db.add(new_user)
@@ -43,6 +45,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     
     logger.info(f"User registered successfully: {user.email}")
     return new_user
+
 
 @router.post("/login")
 def login(user_data: UserLogin, db: Session = Depends(get_db)):
@@ -88,6 +91,7 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
     
     logger.info(f"Successful login for email: {user_data.email}")
     return response
+
 
 @router.post("/token")
 async def token_login(
@@ -139,6 +143,7 @@ async def token_login(
     logger.info(f"Successful token login for username: {username}")
     return response
 
+
 @router.post("/refresh")
 def refresh_token(
     refresh_token: str = Body(..., embed=True),
@@ -166,6 +171,7 @@ def refresh_token(
         "token_type": "bearer"
     }
 
+
 @router.post("/logout")
 def logout(
     refresh_token: str = Body(..., embed=True),
@@ -191,25 +197,28 @@ def logout(
         logger.warning("Refresh token not found")
         return {"message": "Already logged out"}
 
+
 @router.get("/me", response_model=UserResponse)
 def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
+
 @router.get("/admin-only")
-def admin_endpoint(current_user: User = Depends(require_admin)):
+def admin_endpoint(current_user: User = Depends(get_current_admin_user)):
     return {"message": f"Hello admin {current_user.email}"}
+
 
 @router.post("/make-admin/{user_id}")
 def make_admin(
     user_id: int, 
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(get_current_admin_user)
 ):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    user.role = "ADMIN"
+    user.role = UserRole.ADMIN
     db.commit()
     
     return {"message": f"User {user.email} is now admin"}

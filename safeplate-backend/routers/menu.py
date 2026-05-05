@@ -1,16 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
 from sqlalchemy.orm import Session
-from sqlalchemy import select, or_
+from sqlalchemy import select
 from typing import List, Optional
 from models.allergen import Allergen, dish_allergen_association, user_allergen_association
 from models.dish_image import DishImage
 from database import get_db
-from models.dish import Dish as DishModel, DishCategory
-from models.user import User, UserRole
-from dependencies import require_role, get_current_user
+from models.dish import Dish as DishModel
+from models.user import User
+from dependencies import get_current_user, get_current_admin_user
 from pydantic import BaseModel
 
 router = APIRouter()
+
 
 class DishResponse(BaseModel):
     id: int
@@ -23,17 +24,20 @@ class DishResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
 class DishCreate(BaseModel):
     name: str
     description: str
     allergens: List[str] = []
     category: Optional[str] = None
 
+
 class DishUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     allergens: Optional[List[str]] = None
     category: Optional[str] = None
+
 
 @router.get("/", response_model=List[DishResponse])
 def get_all_dishes(
@@ -42,17 +46,12 @@ def get_all_dishes(
     current_user: User = Depends(get_current_user),
     
     search: Optional[str] = Query(None, description="Поиск по названию"),
-    
     category: Optional[str] = Query(None, description="Фильтр по категории"),
-    
     safe_only: Optional[bool] = Query(False, description="Только безопасные (без аллергенов пользователя)"),
-
     sort_by: Optional[str] = Query("name", description="Поле для сортировки (name, category)"),
     sort_order: Optional[str] = Query("asc", description="Направление (asc, desc)"),
-
     skip: int = Query(0, ge=0, description="Сколько пропустить"),
     limit: int = Query(10, ge=1, le=100, description="Сколько вернуть")
-    
 ):
     query = db.query(DishModel)
 
@@ -108,20 +107,18 @@ def get_all_dishes(
             if any(a in user_allergen_names for a in allergens):
                 continue
         
-        result.append(
-            DishResponse(
-                id=dish.id,
-                name=dish.name,
-                description=dish.description or "",
-                allergens=allergens,
-                category=dish.category.value if dish.category else None,
-                images=images_data
-            )
-        )
+        result.append(DishResponse(
+            id=dish.id,
+            name=dish.name,
+            description=dish.description or "",
+            allergens=allergens,
+            category=dish.category.value if dish.category else None,
+            images=images_data
+        ))
     
     response.headers["X-Total-Count"] = str(total)
-    
     return result
+
 
 @router.get("/{dish_id}", response_model=DishResponse)
 def get_dish(
@@ -156,7 +153,8 @@ def get_dish(
         images=images_data
     )
 
-@router.post("/", response_model=DishResponse, dependencies=[Depends(require_role(UserRole.ADMIN))])
+
+@router.post("/", response_model=DishResponse, dependencies=[Depends(get_current_admin_user)])
 def create_dish(
     dish: DishCreate,
     db: Session = Depends(get_db)
@@ -195,7 +193,8 @@ def create_dish(
         images=[]
     )
 
-@router.put("/{dish_id}", response_model=DishResponse, dependencies=[Depends(require_role(UserRole.ADMIN))])
+
+@router.put("/{dish_id}", response_model=DishResponse, dependencies=[Depends(get_current_admin_user)])
 def update_dish(
     dish_id: int,
     dish_data: DishUpdate,
@@ -259,7 +258,8 @@ def update_dish(
         images=images_data
     )
 
-@router.delete("/{dish_id}", dependencies=[Depends(require_role(UserRole.ADMIN))]) 
+
+@router.delete("/{dish_id}", dependencies=[Depends(get_current_admin_user)]) 
 def delete_dish(
     dish_id: int,
     db: Session = Depends(get_db)
@@ -278,6 +278,7 @@ def delete_dish(
     db.commit()
 
     return {"message": "Dish deleted successfully"}
+
 
 @router.get("/test")
 def test():

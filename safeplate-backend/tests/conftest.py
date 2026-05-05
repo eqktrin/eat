@@ -1,84 +1,147 @@
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from database import Base
-from main import app
 from fastapi.testclient import TestClient
-from utils.security import create_access_token, get_password_hash
+from fastapi import Depends, HTTPException
+from sqlalchemy.orm import Session
 
-# Импортируем ВСЕ модели, чтобы SQLAlchemy знал о них
-from models.user import User
+import main
+from database import Base, engine, SessionLocal, get_db
+from models.user import User, UserRole
 from models.dish import Dish
-from models.order import Order
-from models.favorite import Favorite
-from models.allergen import Allergen, dish_allergen_association, user_allergen_association
-from models.dish_image import DishImage
+from utils.security import get_password_hash, create_access_token
 
-# Тестовая БД
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-@pytest.fixture(autouse=True)
-def setup_database():
-    """Создаёт все таблицы перед тестами и удаляет после"""
+# ========== БАЗА ДАННЫХ ==========
+@pytest.fixture(scope="session", autouse=True)
+def setup_db():
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
 
-@pytest.fixture
-def db_session():
-    """Фикстура для сессии БД"""
-    db = TestingSessionLocal()
+
+def override_get_db():
+    db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
 
+
+# ========== ОВЕРРАЙД DEPENDENCIES ==========
+def override_get_current_user_for_tests():
+    """Возвращает тестового пользователя (при наличии токена)"""
+    db = SessionLocal()
+    user = db.query(User).filter(User.email == "test@example.com").first()
+    if not user:
+        user = User(
+            email="test@example.com",
+            password_hash=get_password_hash("secret123"),
+            role=UserRole.USER
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    db.close()
+    return user
+
+
+def override_get_current_admin_for_tests():
+    db = SessionLocal()
+    admin = db.query(User).filter(User.email == "admin@example.com").first()
+    if not admin:
+        admin = User(
+            email="admin@example.com",
+            password_hash=get_password_hash("admin123"),
+            role=UserRole.ADMIN
+        )
+        db.add(admin)
+        db.commit()
+        db.refresh(admin)
+    db.close()
+    return admin
+
+
+from dependencies import get_current_user, get_current_admin_user, oauth2_scheme
+
+# Очищаем overrides перед настройкой
+main.app.dependency_overrides.clear()
+main.app.dependency_overrides[get_db] = override_get_db
+
+# Создаём функцию-обёртку, которая проверяет токен
+async def get_current_user_with_override(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(override_get_db)
+):
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return override_get_current_user_for_tests()
+
+main.app.dependency_overrides[get_db] = override_get_db
+
 @pytest.fixture
 def client():
-    return TestClient(app)
+    return TestClient(main.app)
+
 
 @pytest.fixture
-def admin_token(db_session):
-    admin = User(
-        email="admin@menu.com",
-        password_hash=get_password_hash("admin123"),
-        role="ADMIN"
-    )
-    db_session.add(admin)
-    db_session.commit()
-    db_session.refresh(admin)
-    return create_access_token(data={"sub": str(admin.id)})
-
-@pytest.fixture
-def user_token(db_session):
+def test_user():
+    db = SessionLocal()
+    # Очищаем старого пользователя
+    db.query(User).filter(User.email == "test@example.com").delete()
+    db.commit()
+    
     user = User(
-        email="user@menu.com",
-        password_hash=get_password_hash("user123"),
-        role="USER"
+        email="test@example.com",
+        password_hash=get_password_hash("secret123"),
+        role=UserRole.USER
     )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return create_access_token(data={"sub": str(user.id)})
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    db.close()
+    return user
+
 
 @pytest.fixture
-def sample_dish(db_session):
-    dish = Dish(
-        name="Тестовое блюдо",
-        description="Описание тестового блюда",
-        category="main"
+def admin_user():
+    db = SessionLocal()
+    # Очищаем старого админа
+    db.query(User).filter(User.email == "admin@example.com").delete()
+    db.commit()
+    
+    admin = User(
+        email="admin@example.com",
+        password_hash=get_password_hash("admin123"),
+        role=UserRole.ADMIN
     )
-    db_session.add(dish)
-    db_session.commit()
-    db_session.refresh(dish)
+    db.add(admin)
+    db.commit()
+    db.refresh(admin)
+    db.close()
+    return admin
+
+
+@pytest.fixture
+def user_token(test_user):
+    return create_access_token(data={"sub": str(test_user.id)})
+
+
+@pytest.fixture
+def admin_token(admin_user):
+    return create_access_token(data={"sub": str(admin_user.id)})
+
+
+@pytest.fixture
+def sample_dish():
+    db = SessionLocal()
+    dish = db.query(Dish).filter(Dish.name == "Test Dish").first()
+    if not dish:
+        dish = Dish(
+            name="Test Dish",
+            description="Test description",
+            category="main"
+        )
+        db.add(dish)
+        db.commit()
+        db.refresh(dish)
+    db.close()
     return dish
-
-@pytest.fixture
-def sample_allergen(db_session):
-    allergen = Allergen(name="dairy", description="Молочные продукты")
-    db_session.add(allergen)
-    db_session.commit()
-    db_session.refresh(allergen)
-    return allergen
